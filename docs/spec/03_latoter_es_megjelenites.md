@@ -2,19 +2,19 @@
 
 ## 3.1 Felderítés
 ```
-enter_room(P):                      // ajtón át belépéskor, teleportkor, új szinten
-  proom = a P-t tartalmazó szoba; door_open(proom) (ébresztés, 6.4)
-  if !DARK(proom) and !ISBLIND:
+enter_room(pos):  // ajtón át belépéskor, teleportkor, új szinten
+  player.room = a pos-t tartalmazó szoba; door_open(player.room) (ébresztés, 6.4)
+  if !DARK(player.room) and !ISBLIND:
      a teljes szoba (falakkal) MAP → SCREEN, a szörnyek helyén a látható szörnyek (see_monst)
 
-leave_room(P):                      // szobából ajtón át folyosóra lépéskor
-  if MAZE(proom): return
-  floor = PHANTOM ? PASSAGE : (!DARK or ISBLIND) ? FLOOR : ' '
+leave_room(pos):  // szobából ajtón át folyosóra lépéskor
+  if MAZE(player.room): return
+  floor_char = PHANTOM ? PASSAGE : (!DARK or ISBLIND) ? FLOOR : ' '  // amivé a szörnyek helye válik
   a szoba SCREEN-jén: sötét szobában a FLOOR jelek ' '-re törlődnek;
-  a szörnyek jele helyére floor (ajtón DOOR) kerül – SEEMONST alatt inverzen maradnak
-  proom = a folyosórendszer; door_open(régi szoba)
+  a szörnyek jele helyére floor_char (ajtón DOOR) kerül – SEEMONST alatt inverzen maradnak
+  player.room = a folyosórendszer; door_open(régi szoba)
 
-look(wakeup):                       // minden akció előtt
+look(wakeup):  // minden akció előtt
   ha elmozdult: erase_lamp(régi pozíció, régi szoba)
   a 3×3 környezet minden mezője (a játékosé kivételével):
      ' ' mező kimarad; folyosó és szoba közt csak ajtón át lát (F_PASS-egyezés);
@@ -27,7 +27,7 @@ look(wakeup):                       // minden akció előtt
      sötét szobában, seefloor ki: a FLOOR helyett ' '
   vakon csak a játékos mezőjét rajzolja, de a szomszédos szörnyek ébresztése vakon is lefut
 
-erase_lamp(pos, room):              // csak sötét, nem fantom szobában, seefloor be, nem vak
+erase_lamp(pos, room):  // csak sötét, nem fantom szobában, seefloor be, nem vak
   a pos körüli 3×3-ban a SCREEN FLOOR jelei ' '-re (a játékos mezője kivételével)
 ```
 - **Ami a SCREEN-en marad (memória):** falak, ajtók, folyosók, lépcső, felfedezett csapdák **és a már látott tárgyak**. Sötét szobából távozva *kizárólag a FLOOR karakterek* törlődnek.

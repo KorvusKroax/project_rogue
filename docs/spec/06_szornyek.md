@@ -38,59 +38,59 @@ Minden szörny `str = 10`.
 ## 6.2 Generálás
 ```
 INITIAL = "KEBSHIROZLCQANYFTWPXUMVGJD"
-WANDER  = "KEBSH0ROZ0CQA0Y0TWP0UMVGJ0"     // 0 = nem lehet vándorló
+WANDER  = "KEBSH0ROZ0CQA0Y0TWP0UMVGJ0"  // 0 = nem lehet vándorló
 
-new_monster(lvl_d, list):
+new_monster(depth, type_list):  // depth: a dungeon-szint; type_list: INITIAL vagy WANDER
   loop:
-    i = lvl_d + rnd(10) - 6
-    if i < 0:  i = rnd(5)
-    if i > 25: i = rnd(5) + 21
-    if list[i] != 0: break
-  t = TYPES[list[i]]
-  mod = max(lvl_d - AMULET_LEVEL, 0)
-  m.lvl = t.lvl + mod
-  m.maxhp = m.hpt = ROLL(m.lvl, 8)
-  m.arm = t.arm - mod
-  m.dmg = t.dmg; m.str = t.str; m.flags = t.flags
-  m.exp = t.exp + mod*10 + expmod(m.lvl, m.maxhp)
-  if lvl_d > 29: m.flags |= ISHASTE
-  m.turn = true                                // lassítva az első körben lép
-  m.oldch = a mező jelenlegi képernyőjele
-  m a szörnylista ELEJÉRE kerül                 // a runners így a legújabbal kezd
-  if aggravate ring worn: runto(m)              // ISRUN, ISHELD le, dest = find_dest
-  m.disguise = type
-  if type == 'X': m.disguise = rnd_thing()
+    index = depth + rnd(10) - 6               // a mélység körüli véletlen pozíció a listában
+    if index < 0:  index = rnd(5)
+    if index > 25: index = rnd(5) + 21
+    if type_list[index] != 0: break           // 0: ezen a helyen nincs vándorló
+  type = TYPES[type_list[index]]
+  depth_bonus = max(depth - AMULET_LEVEL, 0)  // az amulett szintje alatt erősebbek a szörnyek
+  monster.lvl = type.lvl + depth_bonus
+  monster.maxhp = monster.hpt = ROLL(monster.lvl, 8)
+  monster.arm = type.arm - depth_bonus
+  monster.dmg = type.dmg; monster.str = type.str; monster.flags = type.flags
+  monster.exp = type.exp + depth_bonus*10 + expmod(monster.lvl, monster.maxhp)
+  if depth > 29: monster.flags |= ISHASTE
+  monster.turn = true                         // lassítva az első körben lép
+  monster.oldch = a mező jelenlegi képernyőjele
+  monster a szörnylista ELEJÉRE kerül         // a runners így a legújabbal kezd
+  if aggravate ring worn: runto(monster)      // ISRUN, ISHELD le, dest = find_dest
+  monster.disguise = type.letter
+  if type.letter == 'X': monster.disguise = rnd_thing()
        // egyenletesen: ! ? = / : ) ] % *   és a 26. szinttől a , (amulett) is
        // (POTION, SCROLL, RING, STICK, FOOD, WEAPON, ARMOR, STAIRS, GOLD, [AMULET])
 
-expmod(lvl, hp):
-  mod = (lvl == 1) ? hp/8 : hp/6
-  if lvl > 9: mod *= 20 else if lvl > 6: mod *= 4
-  return mod
+expmod(lvl, hp):  // az XP-érték HP-tól függő része
+  bonus = (lvl == 1) ? hp/8 : hp/6
+  if lvl > 9: bonus *= 20 else if lvl > 6: bonus *= 4
+  return bonus
 ```
 
 **Vándorló szörny démon:**
 ```
 // induláskor: időzítő spread(70) (AFTER fázis); lejártakor elindul a rollwand démon (BEFORE fázis)
-rollwand():                                   // BEFORE fázis, körönként egyszer
-  if ++between >= 4:
+rollwand():  // BEFORE fázis, körönként egyszer
+  if ++wander_check_tick >= 4:  // csak minden 4. körben dob
      if ROLL(1,6) == 4:
         wanderer()
         rollwand démon le; új időzítő spread(70), ezúttal a BEFORE fázisban
-     between = 0
+     wander_check_tick = 0
 
 wanderer():
   hely: find_floor(null, monster), ismételve amíg nem a játékos szobája
-  m = new_monster(level, WANDER)
-  if SEEMONST: m kirajzolása inverzen (hallucinálva véletlen betűvel)
-  runto(m)                                    // ISRUN; dest = find_dest(m) – általában a játékos
+  monster = new_monster(level, WANDER)
+  if SEEMONST: monster kirajzolása inverzen (hallucinálva véletlen betűvel)
+  runto(monster)  // ISRUN; dest = find_dest(monster) – általában a játékos
   nem kap tárgyat
 ```
 
 ## 6.3 Kezdő tárgy
 ```
-give_item(m):
-  if level >= max_level and rnd(100) < carry: m.pack += new_item()
+give_item(monster):
+  if level >= max_level and rnd(100) < monster.carry: monster.pack += new_item()
 ```
 
 ## 6.4 Ébresztés
@@ -100,26 +100,26 @@ give_item(m):
 2. **Minden játékos-akció előtt** (`look(TRUE)` a parancsciklusban): a játékos körüli **8 szomszédos** mezőn álló, látható szörnyekre. Átlós szomszéd csak akkor, ha nem sarkon át esik.
 
 ```
-wake_monster(m):
+wake_monster(monster):
   // 1. aljas szörny
-  if !m.ISRUN and rnd(3) != 0 and m.ISMEAN and !m.ISHELD
+  if !monster.ISRUN and rnd(3) != 0 and monster.ISMEAN and !monster.ISHELD
      and !wearing(STEALTH) and !player.ISLEVIT:
-       m.dest = player; m.flags |= ISRUN
+       monster.dest = player; monster.flags |= ISRUN
   // 2. Medusa pillantása – minden hívásnál próbálkozik, amíg el nem sütötte (ISFOUND)
-  if m.type == 'M' and !player.ISBLIND and !player.ISHALU
-     and !m.ISFOUND and !m.ISCANC and m.ISRUN:
-       if (a JÁTÉKOS szobája világos) or dist2(m, player) < 3:
-          m.flags |= ISFOUND                       // a mentődobás előtt → csak egy esély
+  if monster.type == 'M' and !player.ISBLIND and !player.ISHALU
+     and !monster.ISFOUND and !monster.ISCANC and monster.ISRUN:
+       if (a JÁTÉKOS szobája világos) or dist2(monster, player) < 3:
+          monster.flags |= ISFOUND                      // a mentődobás előtt → csak egy esély
           if !save_magic():
              ISHUH; ha már zavarodott: az időzítő +spread(20), különben új időzítő spread(20)
-             név(m) + "'s gaze has confused you"   // pl. "the medusa's gaze …"; ha név(m) == "it": "its gaze …"
+             név(monster) + "'s gaze has confused you"  // pl. "the medusa's gaze …"; ha név(monster) == "it": "its gaze …"
   // 3. kapzsi szörny – nincs 2/3 esély, a stealth és a lebegés sem védi ki, ISHELD-et sem nézi
-  if m.ISGREED and !m.ISRUN:
-       m.flags |= ISRUN
-       m.dest = (a JÁTÉKOS szobájában van arany) ? annak helye : player
+  if monster.ISGREED and !monster.ISRUN:
+       monster.flags |= ISRUN
+       monster.dest = (a JÁTÉKOS szobájában van arany) ? annak helye : player
 
-runto(m):           // a "kényszerített" ébresztés
-  m.flags |= ISRUN; m.flags &= ~ISHELD; m.dest = choose_dest(m)
+runto(monster):  // a "kényszerített" ébresztés
+  monster.flags |= ISRUN; monster.flags &= ~ISHELD; monster.dest = choose_dest(monster)
 ```
 
 **Nem ISMEAN és nem ISGREED szörny** (B, C, I, J, L, N, P, W, X, Y) a `wake_monster`-től **soha nem ébred fel**, akármilyen közel megy hozzá a játékos, vagy akárhányszor lép be a szobájába. Csak `runto` indítja el, ezek pedig:
@@ -133,13 +133,13 @@ Az ébren lévő szörnyet a Hold monster tekercs állítja meg (ISRUN le, ISHEL
 
 ## 6.5 Célpont
 ```
-find_dest(m):
-  if TYPES[m.type].carry <= 0 or m.room == player.room or see_monst(m):
+find_dest(monster):
+  if TYPES[monster.type].carry <= 0 or monster.room == player.room or see_monst(monster):
      return player
-  for each obj on the level floor (a tárgylista sorrendjében):
-     if obj is scare monster scroll: continue
-     if room(obj.pos) == m.room and rnd(100) < carry:      // tárgyanként külön dobás
-        if no other monster has dest == obj: return obj
+  for each item on the level floor (a tárgylista sorrendjében):
+     if item is scare monster scroll: continue
+     if room(item.pos) == monster.room and rnd(100) < monster.carry:  // tárgyanként külön dobás
+        if no other monster has dest == item: return item
   return player
 ```
 - *Forrásbeli hiba:* a „más szörny célja-e” ellenőrzés felülírja a vizsgált szörnyet. Ha egy tárgy foglaltnak bizonyul, a további tárgyakat már a foglaló szörny szobájához hasonlítja (a `carry` esély az eredeti szörnyé marad).
@@ -149,79 +149,80 @@ find_dest(m):
 
 ## 6.6 Mozgás
 ```
-runners():                                   // az AFTER fázisban, egyszer körönként
-  for each m (a szörnylista sorrendjében):
-    if m.ISHELD or !m.ISRUN: continue
-    orig = m.pos
-    if move_monst(m) == MEGHALT: continue     // pl. a játékost támadva eltűnt (nimfa, leprechaun)
-    if m.ISFLY and dist2(player, m.pos) >= 3: move_monst(m)
-    if m.ISTARGET volt és m.pos != orig: ISTARGET le, 'f'-harc vége
+runners():  // az AFTER fázisban, egyszer körönként
+  for each monster (a szörnylista sorrendjében):
+    if monster.ISHELD or !monster.ISRUN: continue
+    old_pos = monster.pos
+    if move_monst(monster) == MEGHALT: continue  // pl. a játékost támadva eltűnt (nimfa, leprechaun)
+    if monster.ISFLY and dist2(player, monster.pos) >= 3: move_monst(monster)
+    if monster.ISTARGET volt és monster.pos != old_pos: ISTARGET le, 'f'-harc vége
 
-move_monst(m):
-  if !m.ISSLOW or m.turn: do_chase(m)
-  if m.ISHASTE: do_chase(m)
-  m.turn = !m.turn
+move_monst(monster):
+  if !monster.ISSLOW or monster.turn: do_chase(monster)
+  if monster.ISHASTE: do_chase(monster)
+  monster.turn = !monster.turn
 
-do_chase(m):
-  if m.ISGREED and m.room.gold_val == 0: m.dest = player
-  target_room = (m.dest == player) ? player.room : room(m.dest)
-  rer = m.room; on_door = (MAP[m.pos] == DOOR)
+do_chase(monster):
+  if monster.ISGREED and monster.room.gold_val == 0: monster.dest = player
+  target_room = (monster.dest == player) ? player.room : room(monster.dest)
+  current_room = monster.room; on_door = (MAP[monster.pos] == DOOR)
   loop:
-    if rer != target_room:
-       goal = rer.exits közül a dest-hez (dist2) legközelebbi
-       if on_door: rer = m.pos folyosórendszere; on_door = false; ismét a ciklus elejére
+    if current_room != target_room:                               // más szobában van a cél: a legjobb kijárat felé
+       goal = current_room.exits közül a dest-hez (dist2) legközelebbi
+       if on_door: current_room = monster.pos folyosórendszere; on_door = false; ismét a ciklus elejére
     else:
-       goal = m.dest
-       if m is 'D' and !ISCANC and egy vonalban (vízszintes/függőleges/átló) a játékossal
-          and dist2(m, player) <= 36 and rnd(5) == 0:
-          fire_bolt(m.pos, irány a játékos felé, "flame")       // 7.6
+       goal = monster.dest
+       if monster.type == 'D' and !ISCANC and egy vonalban (vízszintes/függőleges/átló) a játékossal
+          and dist2(monster, player) <= 36 and rnd(5) == 0:
+          fire_bolt(monster.pos, irány a játékos felé, "flame")   // 7.6
           futás, ismétlés megszakad; regen-számláló = 0; to_death vége, ha nem ez a célpont
           return
     break
-  (T, arrived) = chase(m, goal)
-  if arrived:                                  // chase nem talált jobb mezőt
-     if goal == player.pos: return attack(m)    // 7.1, 6.7
-     if goal == m.dest:
-        if m.dest egy padlón fekvő tárgy:
-           felveszi a csomagjába, a mező FLOOR/PASSAGE lesz; m.dest = find_dest(m)
-        if m != 'F': stop = true
-  else if m is 'F': return                     // a Venus flytrap soha nem mozdul el
-  relocate(m, T)
-  if stop and m.pos == m.dest: m.ISRUN = false   // pl. a kapzsi szörny ráült az aranyra
+  (next_pos, arrived) = chase(monster, goal)
+  if arrived:                                                     // chase nem talált jobb mezőt
+     if goal == player.pos: return attack(monster)                // 7.1, 6.7
+     if goal == monster.dest:
+        if monster.dest egy padlón fekvő tárgy:
+           felveszi a csomagjába, a mező FLOOR/PASSAGE lesz; monster.dest = find_dest(monster)
+        if monster.type != 'F': stop = true
+  else if monster.type == 'F': return                             // a Venus flytrap soha nem mozdul el
+  relocate(monster, next_pos)
+  if stop and monster.pos == monster.dest: monster.ISRUN = false  // pl. a kapzsi szörny ráült az aranyra
 
-chase(m, goal):                                // → (T, megérkezett?)
-  if (m.ISHUH and rnd(5) != 0) or (m is 'P' and rnd(5) == 0) or (m is 'B' and rnd(2) == 0):
-     T = rndmove(m)                            // lent
-     if rnd(20) == 0: m.ISHUH = false
-     d = dist2(T, goal)
+chase(monster, goal):  // → (best, megérkezett?); best: ahová lépni fog
+  if (monster.ISHUH and rnd(5) != 0) or (monster.type == 'P' and rnd(5) == 0) or (monster.type == 'B' and rnd(2) == 0):
+     best = rndmove(monster)                                             // lent
+     if rnd(20) == 0: monster.ISHUH = false
+     best_dist = dist2(best, goal)
   else:
-     T = m.pos; d = dist2(m.pos, goal); ties = 1
-     for each N in m 3×3 környezete (a 0. és 23. sor kivételével), x szerint, azon belül y szerint:
-        if !diag_ok(m.pos, N): continue
-        if !step_ok(MAP/SCREEN jel N-en): continue        // fal, kő, szörny nem jó
-        if N-en scare monster tekercs: continue
-        if N-en Xeroc áll: continue
-        dn = dist2(N, goal)
-        if dn < d:  T = N; d = dn; ties = 1
-        else if dn == d and rnd(++ties) == 0: T = N         // egyenletes választás az egyenlők közül
-  return (T, d == 0 or T == player.pos)
+     best = monster.pos; best_dist = dist2(monster.pos, goal); ties = 1  // ties: hány egyformán jó mezőt láttunk
+     for each cell in monster 3×3 környezete (a 0. és 23. sor kivételével), x szerint, azon belül y szerint:
+        if !diag_ok(monster.pos, cell): continue
+        if !step_ok(MAP/SCREEN jel cell-en): continue                    // fal, kő, szörny nem jó
+        if cell-en scare monster tekercs: continue
+        if cell-en Xeroc áll: continue
+        dist = dist2(cell, goal)
+        if dist < best_dist:  best = cell; best_dist = dist; ties = 1
+        else if dist == best_dist and rnd(++ties) == 0: best = cell      // egyenletes választás az egyenlők közül
+  return (best, best_dist == 0 or best == player.pos)
 ```
 ```
-rndmove(who):                                // zavarodott mozgás (szörny és játékos is)
-  T = who.pos + (rnd(3) - 1, rnd(3) - 1)
-  if T == who.pos: return T
-  if !diag_ok(who.pos, T) or !step_ok(T) or T-n scare monster tekercs: return who.pos
-  return T
+rndmove(who):  // zavarodott mozgás (szörny és játékos is)
+  target.y = who.pos.y + rnd(3) - 1  // előbb az y, aztán az x!
+  target.x = who.pos.x + rnd(3) - 1
+  if target == who.pos: return target
+  if !diag_ok(who.pos, target) or !step_ok(target) or target-en scare monster tekercs: return who.pos
+  return target
 ```
 - A szörny akkor támad, ha a legjobb lépés a játékos mezőjére vinne – vagyis ha szomszédos vele (átlósan csak `diag_ok` szerint).
-- Ha nincs közelebbi vagy azonos távolságú mező, helyben marad (`T` = saját mező).
+- Ha nincs közelebbi vagy azonos távolságú mező, helyben marad (`best` = saját mező).
 - A szörnyek nem lépnek egymásra (a szörny jele nem `step_ok`), tárgyra igen.
 
-**relocate(m, T):** ha T ≠ m.pos: a régi mező helyére `m.oldch` kerül, `m.room = room(T)`, majd `m.oldch` = T képernyőjele, a következő módosításokkal (vakon egyik sem érvényes):
+**relocate(monster, new_pos):** ha new_pos ≠ monster.pos: a régi mező helyére `monster.oldch` kerül, `monster.room = room(new_pos)`, majd `monster.oldch` = new_pos képernyőjele, a következő módosításokkal (vakon egyik sem érvényes):
 - sötét szobában, ha a régi VAGY az új `oldch` FLOOR, akkor ' ' (így egy tárgy emléke is törlődhet);
 - különben a 3×3-as környezeten belül, seefloor mellett a MAP jele.
 
-Ezután a szörny T-re kerül. A jele kirajzolódik, ha látható (`disguise`), SEEMONST alatt inverzen a típusa.
+Ezután a szörny new_pos-ra kerül. A jele kirajzolódik, ha látható (`disguise`), SEEMONST alatt inverzen a típusa.
 
 ## 6.7 Speciális támadások (sikeres találat után, ha nincs ISCANC)
 ```
@@ -230,14 +231,14 @@ A aquator: (dmg 0x0) rust_armor(cur_armor)
                        else if ISPROT or maintain armor gyűrű: "the rust vanishes instantly"
                        else: arm++; "your armor appears to be weaker now. Oh my!"
 F flytrap: találatkor:  player.ISHELD = true; vf_hit++; hpt -= 1
-           mellé ütéskor: hpt -= vf_hit         // fogva tartás alatt a "mellé" is sebez
+           mellé ütéskor: hpt -= vf_hit                        // fogva tartás alatt a "mellé" is sebez
            vf_hit egyetlen globális számláló; nullázódik a flytrap halálakor és teleportkor
            a flytrap TÍPUS sebzés-stringje is "<vf_hit>x1" lesz (a halála/teleport után "000x0"), így a később
            születő flytrapok ennyi kockával sebeznek (első találatig "%%%x0" = 0 kocka)
-I ice:     (dmg 0x0) ISRUN le; ha épp nem dermedt: "you are frozen by the " + név(m) (7.7); no_command += rnd(2)+2
+I ice:     (dmg 0x0) ISRUN le; ha épp nem dermedt: "you are frozen by the " + név(monster) (7.7); no_command += rnd(2)+2
            if no_command > 50: death("hypothermia")
 L leprech: gold -= rnd(50+10*level)+2
-           if !save_magic(): gold -= 4 × (rnd(50+10*level)+2)    // négy külön dobás
+           if !save_magic(): gold -= 4 × (rnd(50+10*level)+2)  // négy külön dobás
            gold = max(gold, 0); "your purse feels lighter" (ha változott)
            a leprechaun eltűnik a szintről, a nála lévő tárgyak elvesznek
 M medusa:  a pillantás nem támadás, hanem a wake_monster része (6.4); a közelharci támadásai normálisan sebeznek
@@ -248,12 +249,12 @@ N nymph:   (dmg 0x0) tárgy = egyenletesen egy mágikus tárgy (8.8) a csomagban
 R rattle:  if !save_poison():
              if !sustain strength gyűrű: chg_str(-1); "you feel a bite in your leg and now feel weaker"
              else if !to_death: "a bite momentarily weakens you"
-V vampire: if rnd(100) < 30: d = ROLL(1,3); hpt -= d; maxhp -= d
+V vampire: if rnd(100) < 30: drained = ROLL(1,3); hpt -= drained; maxhp -= drained
              if hpt <= 0: hpt = 1;  if maxhp <= 0: death; "you suddenly feel weaker"
 W wraith:  if rnd(100) < 15:
              if exp == 0: death
              lvl--; if lvl == 0: lvl = 1, exp = 0 else exp = xp_next[lvl-1] + 1
-             d = ROLL(1,10); hpt -= d; maxhp -= d; if hpt <= 0: hpt = 1; if maxhp <= 0: death
+             drained = ROLL(1,10); hpt -= drained; maxhp -= drained; if hpt <= 0: hpt = 1; if maxhp <= 0: death
              "you suddenly feel weaker"
            Megjegyzés: az exp így a lvl+1-hez tartozó küszöb fölé kerül (xp_next 0-indexű, 5.2),
            ezért a következő XP-szerzéskor a szint visszaáll (újabb ROLL(1,10) HP-val) – a szintszívás átmeneti
@@ -264,15 +265,15 @@ D dragon:  lásd tűzokádás (7.6)
 
 ## 6.8 Szörny halála
 ```
-kill_monster(m):
-  exp += m.exp
+kill_monster(monster):
+  exp += monster.exp
   if F: player.ISHELD = false; vf_hit = 0
-  if L and fallpos(m.pos) talál helyet and level >= max_level:
-     arany = rnd(50+10*level)+2; if save_magic(): += 4 × (rnd(50+10*level)+2)
+  if L and fallpos(monster.pos) talál helyet and level >= max_level:
+     gold_amount = rnd(50+10*level)+2; if save_magic(): gold_amount += 4 × (rnd(50+10*level)+2)
      az arany a szörny csomagjába kerül (és vele együtt leesik)
-  m.pack minden tárgya: fall(obj) – a szörny 3×3 környezetének egy véletlen üres
+  monster.pack minden tárgya: fall(item) – a szörny 3×3 környezetének egy véletlen üres
      FLOOR/PASSAGE mezőjére (a játékosé kivételével); ha nincs hely, a tárgy elvész
-  eltávolítás, a mező helyére m.oldch
+  eltávolítás, a mező helyére monster.oldch
   "you have defeated the <name>" (ha látható; ha előtte "hit" üzenet volt: ".  Defeated the <name>")
   szintlépés-ellenőrzés (5.2)
 ```

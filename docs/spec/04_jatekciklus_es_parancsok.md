@@ -4,34 +4,34 @@
 
 ```
 main():
-  init_identification_tables()     // 8.8
-  init_player()                    // 5.1
+  init_identification_tables()  // 8.8
+  init_player()                 // 5.1
   level = 1; new_level()
   loop: command()
 
-command():                          // egy kör
+command():  // egy kör
   // BEFORE fázis
-  wander_daemon()                  // 6.2 (rollwand)
+  wander_daemon()                // 6.2 (rollwand)
   if ISHALU: hallucination_redraw()
   BEFORE-időzítők ketyegése
   actions = (player ISHASTE) ? 2 : 1
   repeat actions:
-    look(wakeup=true)              // látótér frissítés + szomszédok ébresztése (3.1, 6.4)
+    look(wakeup=true)            // látótér frissítés + szomszédok ébresztése (3.1, 6.4)
     update_status(); draw()
-    if no_command > 0:             // alszik / ájult / fagyott
-       cmd = '.'                   // pihenésnek számít
+    if no_command > 0:           // alszik / ájult / fagyott
+       next_command = '.'        // pihenésnek számít
        if --no_command == 0: player.ISRUN = true; "you can move again"
     else:
-       cmd = futás/ismétlés/to_death esetén az előző, különben get_command()
-    took_time = execute(cmd)
-    if not took_time: actions++    // ingyenes parancs: nem fogy az akció
+       next_command = futás/ismétlés/to_death esetén az előző, különben get_command()
+    took_time = execute(next_command)
+    if not took_time: actions++  // ingyenes parancs: nem fogy az akció
     ha a lépés tárgyra vitt: pick_up
   // AFTER fázis
-  move_monsters()                  // 6.6 (runners)
-  player_regen()                   // 5.3 (doctor)
-  hunger()                         // 5.4 (stomach)
+  move_monsters()                // 6.6 (runners)
+  player_regen()                 // 5.3 (doctor)
+  hunger()                       // 5.4 (stomach)
   AFTER-időzítők ketyegése (4.1.1)
-  for hand in LEFT, RIGHT:         // gyűrűk (8.6)
+  for hand in LEFT, RIGHT:       // gyűrűk (8.6)
     if searching gyűrű: search()
     else if teleportation gyűrű and rnd(50) == 0: teleport()
 ```
@@ -75,16 +75,16 @@ A `waste_time()` ([4.2.3](#423-tárgyak)) a BEFORE és AFTER fázis démonjait/i
 move(dir):
   if bear_trap > 0: bear_trap--; "you are still stuck in the bear trap"; uses turn
   if ISHUH and rnd(5) != 0:
-     T = rndmove(player)          // 6.6: ha a véletlen cél nem járható (fal, kő, szabálytalan átló,
-     if T == pos: no time; futás és 'f'-harc vége; return   //  szörny, scare monster tekercs), helyben marad
-  else: T = pos + dir
-  if T a pályán kívül (0. sor, 23. sor, oszlop < 0 vagy ≥ 80): mint falnál (lent)
+     target = rndmove(player)                                          // 6.6: ha a véletlen cél nem járható (fal, kő, szabálytalan átló,
+     if target == player.pos: no time; futás és 'f'-harc vége; return  //  szörny, scare monster tekercs), helyben marad
+  else: target = player.pos + dir                                      // target: a mező, ahová lépni akar
+  if target a pályán kívül (0. sor, 23. sor, oszlop < 0 vagy ≥ 80): mint falnál (lent)
   átlós lépés tilos, ha bármelyik ortogonális szomszéd fal/kő (sarokvágás tilalom) – ajtón átlósan sem lehet ki/be lépni; no time
-  if T rejtett csapda és !ISLEVIT: felfedődik (TRAP, F_REAL be)
-  else if ISHELD and T-n nem a flytrap jele áll: "you are being held"; uses turn
-  if monster at T: attack(T)
-  else if T walkable (FLOOR, DOOR, PASSAGE, STAIRS, TRAP, tárgy):
-     pos = T; check room enter/leave (3.1, 6.4)
+  if target rejtett csapda és !ISLEVIT: felfedődik (TRAP, F_REAL be)
+  else if ISHELD and target-en nem a flytrap jele áll: "you are being held"; uses turn
+  if monster at target: attack(target)
+  else if target walkable (FLOOR, DOOR, PASSAGE, STAIRS, TRAP, tárgy):
+     player.pos = target; check room enter/leave (3.1, 6.4)
      if TRAP: trigger (9)
      if item and not 'm' and not ISLEVIT: pick_up
   else: no time
@@ -269,7 +269,7 @@ descend():  // '>'
   if ISLEVIT: "you can't. You're floating off the ground!"; return
   if not on STAIRS: "I see no way down"; return
   level++; new_level()
-ascend():   // '<'
+ascend():  // '<'
   if ISLEVIT: "you can't. You're floating off the ground!"; return
   if not on STAIRS: "I see no way up"; return
   if !has_amulet: "your way is magically blocked"; return

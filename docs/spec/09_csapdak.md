@@ -2,11 +2,12 @@
 
 ## 9.1 Rálépés
 ```
-trigger_trap(P):
-  if player.ISLEVIT: return                    // lebegve a rejtett csapda rejtve is marad
-  MAP[P] &= ~HIDDEN; SCREEN[P] = TRAP
+trigger_trap(pos):
+  if player.ISLEVIT: return               // lebegve a rejtett csapda rejtve is marad
+  F_REAL be a pos-on; SCREEN[pos] = TRAP  // felfedődik
+  trap_type = a pos csapdatípusa (F_TMASK)
   futás/ismétlés megszakad
-  switch type:
+  switch trap_type:
     TRAPDOOR: level++; new_level() (max_level frissül); "you fell into a trap!"
     ARROW:    7.5
     SLEEP:    no_command += 5; ISRUN le; "a strange white mist envelops you and you fall asleep"
@@ -34,10 +35,10 @@ A csapdák állandók, minden rálépéskor újra aktiválódnak.
 ## 9.2 Keresés (`s`, searching gyűrű)
 ```
 search():
-  for each of 8 neighbours N with HIDDEN:
-    k = (ISHALU ? 3 : 0) + (ISBLIND ? 2 : 0)
-    DOOR:    if rnd(5 + k) == 0: reveal
-    TRAP:    if rnd(2 + k) == 0: reveal, "you found <trap name>"
-    PASSAGE: if rnd(3 + k) == 0: reveal
-  reveal: HIDDEN bit le, SCREEN frissül, futás/ismétlés megszakad
+  for each of 8 neighbours cell, ha rejtett (F_REAL nélkül):
+    penalty = (ISHALU ? 3 : 0) + (ISBLIND ? 2 : 0)  // hallucinálva és vakon nehezebb megtalálni
+    titkos ajtó:     if rnd(5 + penalty) == 0: reveal(cell)
+    rejtett csapda:  if rnd(2 + penalty) == 0: reveal(cell), "you found <trap name>"
+    titkos folyosó:  if rnd(3 + penalty) == 0: reveal(cell)
+  reveal(cell): F_REAL be, SCREEN frissül, futás/ismétlés megszakad
 ```

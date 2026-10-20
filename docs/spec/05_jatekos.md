@@ -15,13 +15,13 @@ init_player():
 
 ## 5.2 Szintlépés
 ```
-add_exp(n):
-  exp += n
-  new = 1 + count(xp_next[i] <= exp)
-  if new > lvl:
-     hp_gain = ROLL(new - lvl, 10)
+add_exp(amount):
+  exp += amount
+  new_lvl = 1 + count(xp_next[i] <= exp)  // hány küszöböt ért el
+  if new_lvl > lvl:
+     hp_gain = ROLL(new_lvl - lvl, 10)    // szintenként 1d10 HP
      maxhp += hp_gain; hpt += hp_gain
-     lvl = new; msg "welcome to level %d"
+     lvl = new_lvl; msg "welcome to level %d"
 ```
 
 ```
@@ -47,23 +47,24 @@ player_regen():
 
 ## 5.4 Éhség
 ```
-hunger():                                  // minden körben, alvás/ájulás alatt is
+hunger():  // minden körben, alvás/ájulás alatt is
   old_state = hungry_state
   if food_left <= 0:
-     if food_left-- < -850: death("starvation")      // ≤0 alatt fix 1/kör fogy, a gyűrűk és az amulett nem számít
-     if no_command == 0 and rnd(5) == 0:            // 20% ájulás, ha épp nem ájult
+     if food_left-- < -850: death("starvation")  // ≤0 alatt fix 1/kör fogy, a gyűrűk és az amulett nem számít
+     if no_command == 0 and rnd(5) == 0:         // 20% ájulás, ha épp nem ájult
         no_command += rnd(8) + 4; hungry_state = 3 (FAINT)
         "you feel too weak from lack of food.  You faint"
   else:
-     old = food_left
+     food_before = food_left
      food_left -= ring_eat(LEFT) + ring_eat(RIGHT) + 1 - (has_amulet ? 1 : 0)
-     if food_left < 150 and old >= 150: hungry_state = 2 (WEAK);   "you are starting to feel weak"
-     else if food_left < 300 and old >= 300: hungry_state = 1 (HUNGRY); "you are starting to get hungry"
+     if food_left < 150 and food_before >= 150: hungry_state = 2 (WEAK);   "you are starting to feel weak"
+     else if food_left < 300 and food_before >= 300: hungry_state = 1 (HUNGRY); "you are starting to get hungry"
   if hungry_state != old_state:
-     player.ISRUN = false          // lásd lent
+     player.ISRUN = false                        // lásd lent
      futás, ismétlés, 'f'-harc megszakad
 
-ring_eat(r): +n → n; −n → (rnd(n)==0 ? 1 : 0); 0 → 0; slow digestion → (rnd(2)==0 ? -1 : 0)
+ring_eat(hand):  // a kézen lévő gyűrű étel/kör értéke (8.6 tábla) szerint; üres kéz: 0
+  +k → k;  −k → (rnd(k)==0 ? 1 : 0);  0 → 0;  slow digestion → (rnd(2)==0 ? -1 : 0)
 ```
 - A „Faint” állapot csak az első ájuláskor kapcsol be, addig `food_left ≤ 0` mellett is „Weak” látszik.
 - **A player ISRUN jelentése:** a játékos cselekvőképességét a `no_command` számláló kezeli, az ISRUN-nak egyetlen hatása, hogy **ISRUN nélküli védekezőre a támadó +4 találati bónuszt kap** ([7.1](07_harc.md#71-közelharci-találat)). *Megjegyzés:* éhség-állapotváltás után ezért a szörnyek +4-gyel találnak, amíg egy alvás/ájulás/fagyás le nem jár (`"you can move again"`).
@@ -71,9 +72,9 @@ ring_eat(r): +n → n; −n → (rnd(n)==0 ? 1 : 0); 0 → 0; slow digestion →
 ```
 eat():
   if food_left < 0: food_left = 0
-  food_left = min(food_left + rnd(400) + 1100, STOMACH_SIZE)      // STOMACH_SIZE = 2000
+  food_left = min(food_left + rnd(400) + 1100, STOMACH_SIZE)  // STOMACH_SIZE = 2000
   hungry_state = OK
-  if it.which == FRUIT: "my, that was a yummy <fruit>"
+  if food.which == FRUIT: "my, that was a yummy <fruit>"      // food: a megevett tárgy
   else if rnd(100) > 70: exp++; "yuk, this food tastes awful"; szintlépés-ellenőrzés
   else: "yum, that tasted good"
 ```
@@ -82,21 +83,21 @@ A gyümölcs nem evéskor dől el: az étel tárgy generálásakor 10% eséllyel
 ## 5.5 Effektív páncél (védekezéskor)
 ```
 player_armor():
-  a = cur_armor ? cur_armor.arm : 10
-  for each Protection ring: a -= ring.arm
-  return a
+  armor_value = cur_armor ? cur_armor.arm : 10
+  for each Protection ring: armor_value -= ring.arm
+  return armor_value
 // a státuszsor NEM ezt mutatja: ott a gyűrűk nélküli érték látszik (3.3)
 ```
 
 ## 5.6 Erő
 ```
 // az add strength gyűrű bónusza közvetlenül a str értékébe épül be (felhúzáskor +mod, levételkor −mod)
-add_str(s, n): s += n; s = clamp(s, 3, 31)
-chg_str(n):
-  if n == 0: return
-  add_str(str, n)
-  base = str − (a viselt add strength gyűrűk mod-jai, add_str-rel)
-  if base > str_max: str_max = base          // a maximum a gyűrűk nélküli erő
+add_str(strength, amount): strength += amount; strength = clamp(strength, 3, 31)
+chg_str(amount):
+  if amount == 0: return
+  add_str(str, amount)
+  base_str = str − (a viselt add strength gyűrűk mod-jai, add_str-rel)  // az erő gyűrűk nélkül
+  if base_str > str_max: str_max = base_str                             // a maximum a gyűrűk nélküli erő
 restore strength (bájital): gyűrűbónuszok le; if str < str_max: str = str_max; gyűrűbónuszok vissza
 ```
 A harci táblák (`str_plus`, `add_dam`) a `str` aktuális értékével indexelnek (index = erő, 0..31):

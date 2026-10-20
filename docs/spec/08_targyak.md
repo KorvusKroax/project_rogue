@@ -4,11 +4,11 @@
 ```
 new_item():
   if no_food > 3: type = FOOD
-  else: r = rnd(100):
+  else: roll = rnd(100):
      0..25 POTION, 26..61 SCROLL, 62..77 FOOD, 78..84 WEAPON, 85..91 ARMOR, 92..95 RING, 96..99 STICK
   if type == FOOD:
      no_food = 0
-     which = (rnd(10) != 0) ? FOOD_RATION : FRUIT          // 90% / 10%
+     which = (rnd(10) != 0) ? FOOD_RATION : FRUIT  // 90% / 10%
   else:
      which = pick_by_prob(TABLE[type])
   init per type (8.2..8.7)
@@ -65,9 +65,9 @@ Nem megfelelő tárgyra a `q`, `r` és `e` is időbe kerül („yuk! Why would y
 
 ```
 teleport():
-  P = find_floor(null, monster)   // bármely nem fantom szoba; lehet ugyanaz a szoba, akár ugyanaz a mező is
+  new_pos = find_floor(null, monster)  // bármely nem fantom szoba; lehet ugyanaz a szoba, akár ugyanaz a mező is
   ha más szobába került: leave_room + enter_room, különben look()
-  player.pos = P
+  player.pos = new_pos
   if ISHELD: ISHELD le; vf_hit = 0
   bear_trap (no_move) = 0; futás/ismétlés megszakad; billentyűpuffer ürítése
 ```
@@ -88,10 +88,10 @@ A fegyvertípusok:
 | 8 | spear | 12 | 5 | 2x3 | 1x6 | |
 
 ```
-init_weapon(w):
-  r = rnd(100)
-  if r < 10:  w.ISCURSED; w.hplus -= rnd(3)+1
-  else if r < 15: w.hplus += rnd(3)+1
+init_weapon(weapon):
+  roll = rnd(100)
+  if roll < 10:  weapon.ISCURSED; weapon.hplus -= rnd(3)+1  // 10%: átkozott, negatív bónusz
+  else if roll < 15: weapon.hplus += rnd(3)+1               // 5%: pozitív bónusz
   // dplus = 0
   ISMANY tárgyaknál és a daggernél group = új egyedi azonosító (a dagger nem ISMANY, mégis kötegel)
 ```
@@ -111,11 +111,11 @@ A páncéltípusok:
 | 7 | plate mail | 5 | 150 | 3 |
 
 ```
-init_armor(a):
-  a.arm = base
-  r = rnd(100)
-  if r < 20: a.ISCURSED; a.arm += rnd(3)+1
-  else if r < 28: a.arm -= rnd(3)+1
+init_armor(armor):
+  armor.arm = base                                     // base: a típus védelme a táblából
+  roll = rnd(100)
+  if roll < 20: armor.ISCURSED; armor.arm += rnd(3)+1  // 20%: átkozott, rosszabb
+  else if roll < 28: armor.arm -= rnd(3)+1             // 8%: jobb
 ```
 Átkozott páncél nem vehető le; remove curse után levehető, a rossz érték marad.
 
@@ -138,10 +138,10 @@ init_armor(a):
 | 13 | maintain armor | 5 | +1 | 380 | véd Aquator ellen |
 
 ```
-init_ring(r):
-  if which in {protection, add strength, dexterity, increase damage}:
-     r.arm = rnd(3); if r.arm == 0: r.arm = -1; r.ISCURSED
-  if which in {aggravate, teleportation}: r.ISCURSED
+init_ring(ring):
+  if ring.which in {protection, add strength, dexterity, increase damage}:
+     ring.arm = rnd(3); if ring.arm == 0: ring.arm = -1; ring.ISCURSED  // mod: +1, +2, vagy −1 és átkozott
+  if ring.which in {aggravate, teleportation}: ring.ISCURSED
 ```
 Két kéz (bal/jobb). Átkozott nem vehető le.
 
@@ -164,15 +164,15 @@ Két kéz (bal/jobb). Átkozott nem vehető le.
 | 13 | cancellation | 5 | 280 | első szörny: ISCANC, ISINVIS le, xeroc álca le |
 
 ```
-init_stick(s):
-  s.arm (charges) = (which == light) ? rnd(10)+10 : rnd(5)+3
-  if stick_is_staff[which]: s.damage = "2x3" else s.damage = "1x1"
-  s.hurldmg = "1x1"
+init_stick(stick):
+  stick.arm (charges) = (stick.which == light) ? rnd(10)+10 : rnd(5)+3
+  if stick_is_staff[stick.which]: stick.damage = "2x3" else stick.damage = "1x1"  // bottal közelharcban is lehet ütni
+  stick.hurldmg = "1x1"
 
 zap():
-  s = ask_item(STICK); dir = ask_direction (ha kell)
-  if s.arm == 0: "nothing happens"; return TIME      // a pálca nem tűnik el
-  hatás; s.arm--
+  stick = ask_item(STICK); dir = ask_direction (ha kell)
+  if stick.arm == 0: "nothing happens"; return TIME  // a pálca nem tűnik el
+  hatás; stick.arm--
   "első szörny az útban": a sugár a játékostól indul dir irányba, falig/ajtóig; az első szörnyön megáll
   ha a célpont Venus flytrap (invisibility/polymorph/teleport away/to/cancellation): player.ISHELD le
 ```
@@ -196,13 +196,13 @@ a ab ag aks ala an app arg arze ash bek bie bit bjor blu bot bu byt comp con cos
 ```
 
 ```
-init_materials():                 // bot vagy pálca típusonként
+init_materials():  // bot vagy pálca típusonként
   for each stick type:
     loop:
-      if rnd(2) == 0: j = rnd(len(metal)); if unused: type = "wand", anyag = metal[j]; break
-      else:           j = rnd(len(wood));  if unused: type = "staff", anyag = wood[j]; break
+      if rnd(2) == 0: index = rnd(len(metal)); if unused: type = "wand", anyag = metal[index]; break
+      else:           index = rnd(len(wood));  if unused: type = "staff", anyag = wood[index]; break
 
-init_names():                     // tekercs feliratok
+init_names():  // tekercs feliratok
   for each scroll type:
     rnd(3)+2 szó, mindegyik rnd(3)+1 szótagból a szótag-listából, max. 40 karakter
     szótagok: a fenti tekercsfelirat-szótagok
@@ -223,18 +223,18 @@ Fegyver: `A mace`, azonosítva `A +1,+1 mace`, köteg: `25 +0,+0 arrows`. Pánc�
 
 ## 8.9 Csomag
 ```
-pick_up(it):
-  if GOLD: gold += it.arm; "you found %d gold pieces"; remove; return    // nem kerül a csomagba
-  if it is scare monster and it.ISFOUND: "the scroll turns to dust as you pick it up"; remove; return
+pick_up(item):
+  if GOLD: gold += item.arm; "you found %d gold pieces"; remove; return  // nem kerül a csomagba
+  if item is scare monster and item.ISFOUND: "the scroll turns to dust as you pick it up"; remove; return
   // helyszámlálás: inpack = a csomag DARABSZÁMA, kivéve a csoportos (group) fegyvereket
   //   – 3 egyforma bájital 3 helyet foglal; egy 25-ös nyílköteg 1 helyet
   if inpack + 1 > MAX_PACK (23) (köteghez csatolásnál nem számít bele): "there's no room in your pack"; return
   merge:
     POTION/SCROLL/FOOD azonos which → count++
-    fegyver azonos which és group → count += it.count
-  else: új bejegyzés, it.packch = legkisebb szabad betű 'a'..'z'; a többi betű nem csúszik
+    fegyver azonos which és group → count += item.count
+  else: új bejegyzés, item.packch = legkisebb szabad betű 'a'..'z'; a többi betű nem csúszik
         a csomag típus szerint rendezett: az új tárgy az azonos típusúak mellé kerül
-  it.ISFOUND = true
+  item.ISFOUND = true
   minden szörny, amelyik erre a tárgyra tartott: dest = player
   if AMULET: has_amulet = true
 ```

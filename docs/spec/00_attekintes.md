@@ -4,9 +4,7 @@ A *Rogue: Exploring the Dungeons of Doom* 5.4.4-es változatának nyelvfüggetle
 
 **Futási környezet:** 80×24-es karakteres terminál (curses), teljes billentyűzet SHIFT/CTRL kombinációkkal, fájlrendszer a mentéshez és a ranglistához.
 
-**Jelölések:** a pszeudokód C-szerű; „MUST”-szintű szabály minden, ami le van írva – a szokatlannak tűnő viselkedések is (ezeket *Megjegyzés* jelöli). A játék adattáblái annál a fejezetnél vannak, amelyik a szabályaikat leírja; az összes üzenetét a [függelék](fuggelek_uzenetkatalogus.md) tartalmazza. A specifikációt az eredeti 5.4.4 C forráskóddal fejezetenként összevetették, ezért a megvalósításhoz a forrásra nincs szükség.
-
-A pseudokód C-szerű, egész aritmetikával (osztás lefelé kerekít).
+**Jelölések:** a pszeudokód C-szerű, egész aritmetikával (osztás lefelé kerekít); „MUST”-szintű szabály minden, ami le van írva – a szokatlannak tűnő viselkedések is (ezeket *Megjegyzés* jelöli). A játék adattáblái annál a fejezetnél vannak, amelyik a szabályaikat leírja; az összes üzenetét a [függelék](fuggelek_uzenetkatalogus.md) tartalmazza. A specifikációt az eredeti 5.4.4 C forráskóddal fejezetenként összevetették, ezért a megvalósításhoz a forrásra nincs szükség.
 
 - Körökre osztott, egyképernyős, ASCII karakteres roguelike.
 - A játékos az 1. dungeon szinten kezd. A cél: megszerezni az **Amulettet** (a 26. szinten és mélyebben jelenik meg), majd felmenni vele a lépcsőkön a felszínre. Győzelem: az 1. szinten `<` az Amulettel (`level` 0-ra csökken).
@@ -37,12 +35,12 @@ A forrásban lévő „varázsló” (wizard) mód egy külön fordítási vált
 ## 0.2 Alapprimitívek
 
 ```
-RN              -> seed = seed * 11109 + 13849;  return (seed >> 16) & 0xFFFF     // 32 bites előjeles egész aritmetika
-rnd(n)          -> n == 0 ? 0 : abs(RN) % n          // 0..|n|-1
-seed            -> induláskor: dnum = (idő másodpercben) + folyamatazonosító; seed = dnum
+RN              -> seed = seed * 11109 + 13849;  return (seed >> 16) & 0xFFFF  // 32 bites előjeles egész aritmetika
+rnd(n)          -> n == 0 ? 0 : abs(RN) % n  // 0..|n|-1
+seed            -> induláskor: dnum = (idő másodpercben) + folyamatazonosító; seed = dnum  // dnum: a játék sorszáma, a ranglistán is
 chance(p%)      -> rnd(100) < p
-ROLL(n, s)      -> n darab s oldalú kocka összege: sum(i<n) (rnd(s) + 1)
-spread(n)       -> n - n/20 + rnd(n/10)          // kb. n * 0.95..1.05
+ROLL(count, sides) -> count darab sides oldalú kocka összege: sum(i<count) (rnd(sides) + 1)
+spread(n)       -> n - n/20 + rnd(n/10)      // kb. n * 0.95..1.05
 dist2(a, b)     -> (a.x-b.x)^2 + (a.y-b.y)^2
 sign(v)         -> -1, 0, 1
 ```
